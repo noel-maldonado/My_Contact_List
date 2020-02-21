@@ -2,7 +2,7 @@ package com.example.mycontactlist;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.fragment.app.FragmentManager;
-
+import android.*;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -27,7 +27,7 @@ import com.example.mycontactlist.DatePickerDialog.SaveDateListener;
 
 import java.util.Calendar;
 
-public class MainActivity extends AppCompatActivity implements SaveDateListener {
+public class MainActivity extends AppCompatActivity implements DatePickerDialog.SaveDateListener {
 
     boolean isBFF;
 
@@ -41,12 +41,7 @@ public class MainActivity extends AppCompatActivity implements SaveDateListener 
         initListButton();
         initMapButton();
         initToggleButton();
-        Bundle extras = getIntent().getExtras();
-        if(extras != null) {
-            initContact(extras.getInt("contactid"));
-        } else {
-            currentContact = new Contact();
-        }
+
         setForEditing(false);
         initSettingsButton();
         initChangeDateButton();
@@ -54,6 +49,12 @@ public class MainActivity extends AppCompatActivity implements SaveDateListener 
         initTextChangedEvents();
         initSaveButton();
 
+        Bundle extras = getIntent().getExtras();
+        if(extras != null) {
+            initContact(extras.getInt("contactid"));
+        } else {
+            currentContact = new Contact();
+        }
 
 
 
@@ -77,10 +78,17 @@ public class MainActivity extends AppCompatActivity implements SaveDateListener 
         ibList.setOnClickListener(new View.OnClickListener() {
             public void onClick(View v) {
                 Intent intent = new Intent(MainActivity.this, ContactMapActivity.class);
+                if(currentContact.getContactID() == -1) {
+                    Toast.makeText(getBaseContext(), "Contact must be saved before it can be mapped", Toast.LENGTH_LONG).show();
+                } else {
+                    intent.putExtra("contactid", currentContact.getContactID());
+                }
+
                 intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
                 startActivity(intent);
             }
         });
+
     }
 
     private void initSettingsButton() {
