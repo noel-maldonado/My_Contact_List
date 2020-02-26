@@ -1,14 +1,30 @@
 package com.example.mycontactlist;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentManager;
 import android.*;
+import android.Manifest;
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.app.PendingIntent;
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.telephony.PhoneNumberFormattingTextWatcher;
+import android.telephony.SmsManager;
 import android.text.Editable;
+import android.text.InputType;
 import android.text.TextWatcher;
 import android.text.format.DateFormat;
 import android.view.View;
@@ -24,6 +40,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 import com.example.mycontactlist.DatePickerDialog.SaveDateListener;
+import com.google.android.material.snackbar.Snackbar;
 
 import java.util.Calendar;
 
@@ -33,6 +50,12 @@ public class MainActivity extends AppCompatActivity implements DatePickerDialog.
 
     private Contact currentContact; //creates the association between the this MainActivity class (ContactActivity) and a Contact object
 
+    final int PERMISSION_REQUEST_PHONE = 102;
+    final int PERMISSION_REQUEST_CAMERA = 103;
+    final int CAMERA_REQUEST = 1888;
+    final int PERMISSION_REQUEST_SMS = 105;
+
+    private String m_Text = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,14 +63,16 @@ public class MainActivity extends AppCompatActivity implements DatePickerDialog.
         setContentView(R.layout.activity_main);
         initListButton();
         initMapButton();
-        initToggleButton();
-
-        setForEditing(false);
         initSettingsButton();
+        initToggleButton();
+        setForEditing(false);
         initChangeDateButton();
-
         initTextChangedEvents();
         initSaveButton();
+        initCallFunction();
+        initImageButton();
+        initTextFunction();
+
 
         Bundle extras = getIntent().getExtras();
         if(extras != null) {
@@ -55,6 +80,8 @@ public class MainActivity extends AppCompatActivity implements DatePickerDialog.
         } else {
             currentContact = new Contact();
         }
+
+
 
 
 
@@ -130,14 +157,14 @@ public class MainActivity extends AppCompatActivity implements DatePickerDialog.
         Button buttonSave = (Button) findViewById(R.id.buttonSave);
         CheckBox bff = (CheckBox) findViewById(R.id.checkBoxBFF);
         CheckBox bbff = (CheckBox) findViewById(R.id.checkBoxBBFF);
+        ImageButton picture = (ImageButton) findViewById(R.id.imageContact);
 
+        picture.setEnabled(enabled);
         editName.setEnabled(enabled);
         editAddress.setEnabled(enabled);
         editCity.setEnabled(enabled);
         editState.setEnabled(enabled);
         editZipCode.setEnabled(enabled);
-        editPhone.setEnabled(enabled);
-        editCell.setEnabled(enabled);
         editEmail.setEnabled(enabled);
         buttonChange.setEnabled(enabled);
         buttonSave.setEnabled(enabled);
@@ -146,9 +173,14 @@ public class MainActivity extends AppCompatActivity implements DatePickerDialog.
 
         if (enabled) {
             editName.requestFocus();
+            editPhone.setInputType(InputType.TYPE_CLASS_PHONE);
+            editCell.setInputType(InputType.TYPE_CLASS_PHONE);
         } else {
+            editPhone.setInputType(InputType.TYPE_NULL);
+            editCell.setInputType(InputType.TYPE_NULL);
             ScrollView s = (ScrollView) findViewById(R.id.scrollView1);
             s.fullScroll(ScrollView.FOCUS_UP);
+            s.clearFocus();
         }
 
         if(bff.isChecked()){
@@ -470,8 +502,6 @@ public class MainActivity extends AppCompatActivity implements DatePickerDialog.
         EditText editCell = (EditText) findViewById(R.id.editCell);
         EditText editEMail = (EditText) findViewById(R.id.editEMail);
         TextView birthDay = (TextView) findViewById(R.id.textBirthday);
-
-
         //Test
         CheckBox editBFF = (CheckBox) findViewById(R.id.checkBoxBFF);
         //test
@@ -487,6 +517,14 @@ public class MainActivity extends AppCompatActivity implements DatePickerDialog.
         editCell.setText(currentContact.getCellNumber());
         editEMail.setText(currentContact.getEMail());
         birthDay.setText(DateFormat.format("MM/dd/yyyy", currentContact.getBirthday().getTimeInMillis()).toString());
+
+        ImageButton picture = (ImageButton) findViewById(R.id.imageContact);
+        if (currentContact.getPicture() != null) {
+            picture.setImageBitmap(currentContact.getPicture());
+        }
+        else {
+            picture.setImageResource(R.drawable.pinkguytwo);
+        }
 
         try{
             if(currentContact.getBestFriendForever() == 1) {
@@ -508,6 +546,322 @@ public class MainActivity extends AppCompatActivity implements DatePickerDialog.
         }
 
     }
+
+    private void initCallFunction() {
+        EditText editPhone = (EditText) findViewById(R.id.editHome);
+        editPhone.setOnLongClickListener(new View.OnLongClickListener() {
+
+            @Override
+            public boolean onLongClick(View arg0) {
+                checkPhonePermission(currentContact.getPhoneNumber());
+                return false;
+            }
+        });
+
+        /*
+        EditText editCell = (EditText) findViewById(R.id.editCell);
+        editCell.setOnLongClickListener(new View.OnLongClickListener() {
+
+            @Override
+            public boolean onLongClick(View arg0) {
+                checkPhonePermission(currentContact.getCellNumber());
+                return false;
+            }
+        });
+        */
+
+    }
+
+    private void initTextFunction() {
+        EditText editCell = (EditText) findViewById(R.id.editCell);
+        editCell.setOnLongClickListener(new View.OnLongClickListener() {
+
+            @Override
+            public boolean onLongClick(View arg0) {
+                checkTextPermission(currentContact.getCellNumber());
+                return false;
+            }
+
+        });
+
+    }
+
+
+    private void checkTextPermission (String phoneNumber) {
+        if (Build.VERSION.SDK_INT >= 23) {
+            if(ContextCompat.checkSelfPermission(MainActivity.this,
+                    Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED) {
+
+                if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this,
+                        Manifest.permission.SEND_SMS)) {
+
+                    Snackbar.make(findViewById(R.id.actvity_main),
+                            "MyContactList requires this permission to send a text from the app.",
+                            Snackbar.LENGTH_INDEFINITE).setAction("OK", new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            ActivityCompat.requestPermissions(
+                                    MainActivity.this,
+                                    new String[] {
+                                            android.Manifest.permission.SEND_SMS},
+                                    PERMISSION_REQUEST_SMS);
+
+                        }
+                    }).show();
+
+                } else {
+                    ActivityCompat.requestPermissions(MainActivity.this,
+                            new String[]{android.Manifest.permission.SEND_SMS},
+                            PERMISSION_REQUEST_SMS);
+                }
+            }else {
+                textCell(phoneNumber);
+            }
+        } else {
+            textCell(phoneNumber);
+        }
+    }
+
+
+
+
+    private void checkPhonePermission (String phoneNumber) {
+        if (Build.VERSION.SDK_INT >= 23) {
+            if(ContextCompat.checkSelfPermission(MainActivity.this,
+                    android.Manifest.permission.CALL_PHONE) != PackageManager.PERMISSION_GRANTED) {
+
+                if (ActivityCompat.shouldShowRequestPermissionRationale(MainActivity.this,
+                        android.Manifest.permission.CALL_PHONE)) {
+
+                    Snackbar.make(findViewById(R.id.actvity_main),
+                            "MyContactList requires this permission to place a call from the app.",
+                            Snackbar.LENGTH_INDEFINITE).setAction("OK", new View.OnClickListener() {
+                        @Override
+                        public void onClick(View view) {
+                            ActivityCompat.requestPermissions(
+                                    MainActivity.this,
+                                    new String[] {
+                                            android.Manifest.permission.CALL_PHONE},
+                                    PERMISSION_REQUEST_PHONE);
+
+                        }
+                    }).show();
+
+                } else {
+                    ActivityCompat.requestPermissions(MainActivity.this,
+                            new String[]{android.Manifest.permission.CALL_PHONE},
+                            PERMISSION_REQUEST_PHONE);
+                }
+            }else {
+                callContact(phoneNumber);
+            }
+        } else {
+            callContact(phoneNumber);
+        }
+    }
+
+    private void initImageButton() {
+        ImageButton ib = (ImageButton) findViewById(R.id.imageContact);
+        ib.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                if(Build.VERSION.SDK_INT >= 23) {
+                    if(ContextCompat.checkSelfPermission(MainActivity.this,
+                            android.Manifest.permission.CAMERA) !=
+                    PackageManager.PERMISSION_GRANTED) {
+                        if (ActivityCompat.shouldShowRequestPermissionRationale(
+                                MainActivity.this, android.Manifest.permission.CAMERA)) {
+                            Snackbar.make(findViewById(R.id.actvity_main), "The app needs permission to take pictures.",
+                                    Snackbar.LENGTH_INDEFINITE).setAction("Ok", new View.OnClickListener() {
+                                @Override
+                                public void onClick(View v) {
+                                    ActivityCompat.requestPermissions(
+                                            MainActivity.this, new String[]
+                                                    {android.Manifest.permission.CAMERA},
+                                            PERMISSION_REQUEST_CAMERA);
+                                }
+                            }).show();
+                        } else {
+                            ActivityCompat.requestPermissions(MainActivity.this,
+                                    new String[]{android.Manifest.permission.CAMERA},
+                                    PERMISSION_REQUEST_CAMERA);
+                        }
+                    } else {
+                        takePhoto();
+                    }
+                } else {
+                    takePhoto();
+                }
+            }
+        });
+    }
+
+    public void takePhoto(){
+        Intent cameraIntent = new Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE); //tells the system to open the camera in image capture mode
+        startActivityForResult(cameraIntent, CAMERA_REQUEST);
+    }
+
+
+    @SuppressLint("MissingSuperCall")
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (requestCode == CAMERA_REQUEST) {
+            if (resultCode == RESULT_OK) { //checks to see if camera returned a picture
+                Bitmap photo = (Bitmap) data.getExtras().get("data");
+                Bitmap scaledPhoto = Bitmap.createScaledBitmap(photo, 144, 144, true);
+                ImageButton imageContact = (ImageButton) findViewById(R.id.imageContact);
+                imageContact.setImageBitmap(scaledPhoto);
+                currentContact.setPicture(scaledPhoto);
+            }
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode,
+                                           @NonNull String permissions[],
+                                           @NonNull int[] grantResults) {
+        switch (requestCode) {
+            case PERMISSION_REQUEST_PHONE: {
+                if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    Toast.makeText(MainActivity.this, "You may now call from this app,", Toast.LENGTH_LONG).show();
+                }else {
+                    Toast.makeText(MainActivity.this, "You will not be able to make calls from this app.", Toast.LENGTH_LONG).show();
+                }
+            }
+            case PERMISSION_REQUEST_CAMERA: {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    takePhoto();
+                } else {
+                    Toast.makeText(MainActivity.this, "You will not be able to save contact pictures from this app", Toast.LENGTH_LONG).show();
+                }
+                return;
+            }
+            case PERMISSION_REQUEST_SMS: {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+
+                }else {
+                    Toast.makeText(MainActivity.this, "You will not be able to send sms from this app", Toast.LENGTH_LONG).show();
+                }
+                return;
+            }
+        }
+    }
+
+    private void callContact(String phoneNumber) {
+        Intent intent = new Intent(Intent.ACTION_CALL); //Action_Call tells Android that you want to use the phone to make a call
+        intent.setData(Uri.parse("tel:" + phoneNumber)); //uses Uri to identify a local resource
+        if( Build.VERSION.SDK_INT >= 23 &&
+        ContextCompat.checkSelfPermission(getBaseContext(),
+                android.Manifest.permission.CALL_PHONE) !=
+        PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        else{
+            startActivity(intent);
+        }
+    }
+
+    private void textCell(String cellNumber) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("SMS Text");
+        //set up the input
+        final EditText input = new EditText(this);
+        //specify the type of input expected
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_NORMAL);
+        builder.setView(input);
+
+        //set up the buttons
+        builder.setPositiveButton("Send", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                String sms = input.getText().toString();
+                String phoneNum = currentContact.getCellNumber();
+                if (sms.length() > 0) {
+                    sendSMS(phoneNum, sms);
+                } else {
+                    Toast.makeText(getBaseContext(), "Please Enter a Message.", Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+        builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+
+        builder.show();
+
+
+
+    }
+
+    private void sendSMS(String phoneNumber, String message) {
+        String SENT = "SMS_SENT";
+        String DELIVERED = "SMS_DELIVERED";
+
+        PendingIntent sentPI = PendingIntent.getBroadcast(this, 0,
+                new Intent(SENT), 0);
+
+        PendingIntent deliveredPI = PendingIntent.getBroadcast(this, 0,
+                new Intent(DELIVERED), 0);
+
+        //---when the SMS has been sent---
+        registerReceiver(new BroadcastReceiver(){
+            @Override
+            public void onReceive(Context arg0, Intent arg1) {
+                switch (getResultCode())
+                {
+                    case Activity.RESULT_OK:
+                        Toast.makeText(getBaseContext(), "SMS sent",
+                                Toast.LENGTH_SHORT).show();
+                        break;
+                    case SmsManager.RESULT_ERROR_GENERIC_FAILURE:
+                        Toast.makeText(getBaseContext(), "Generic failure",
+                                Toast.LENGTH_SHORT).show();
+                        break;
+                    case SmsManager.RESULT_ERROR_NO_SERVICE:
+                        Toast.makeText(getBaseContext(), "No service",
+                                Toast.LENGTH_SHORT).show();
+                        break;
+                    case SmsManager.RESULT_ERROR_NULL_PDU:
+                        Toast.makeText(getBaseContext(), "Null PDU",
+                                Toast.LENGTH_SHORT).show();
+                        break;
+                    case SmsManager.RESULT_ERROR_RADIO_OFF:
+                        Toast.makeText(getBaseContext(), "Radio off",
+                                Toast.LENGTH_SHORT).show();
+                        break;
+                }
+            }
+        }, new IntentFilter(SENT));
+
+        //---when the SMS has been delivered---
+        registerReceiver(new BroadcastReceiver(){
+            @Override
+            public void onReceive(Context arg0, Intent arg1) {
+                switch (getResultCode())
+                {
+                    case Activity.RESULT_OK:
+                        Toast.makeText(getBaseContext(), "SMS delivered",
+                                Toast.LENGTH_SHORT).show();
+                        break;
+                    case Activity.RESULT_CANCELED:
+                        Toast.makeText(getBaseContext(), "SMS not delivered",
+                                Toast.LENGTH_SHORT).show();
+                        break;
+                }
+            }
+        }, new IntentFilter(DELIVERED));
+
+        SmsManager sms = SmsManager.getDefault();
+        sms.sendTextMessage(phoneNumber, null, message, sentPI, deliveredPI);
+    }
+
+
+
+
+
+
+
 
 
  /*

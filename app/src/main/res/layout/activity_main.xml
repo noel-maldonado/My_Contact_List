@@ -99,29 +99,44 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content">
 
+            <ImageButton
+                android:id="@+id/imageContact"
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:layout_alignParentRight="true"
+                android:layout_alignParentEnd="true"
+                android:layout_marginRight="10dp"
+                android:layout_marginEnd="10dp"
+                android:layout_alignTop="@+id/textContact"
+                android:src="@drawable/pinkguytwo"
+                android:scaleType="fitXY"
+                android:adjustViewBounds="true"/>
+
 
             <CheckBox
                 android:id="@+id/checkBoxBFF"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="BFF"
-                android:layout_toRightOf="@+id/editName"
-                android:layout_marginTop="20dp"
-                android:layout_marginLeft="10dp"
+                android:layout_toRightOf="@+id/editCell"
+                android:layout_below="@+id/editCell"
+                android:layout_marginTop="0dp"
+                android:layout_marginLeft="5dp"
                 android:textColor="@color/bff_gold_color"
                 android:textSize="@dimen/text_size_large"
+
                 />
             <CheckBox
                 android:id="@+id/checkBoxBBFF"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="BBFF"
-                android:layout_toRightOf="@+id/editName"
-                android:layout_marginTop="20dp"
-                android:layout_marginLeft="10dp"
+                android:layout_marginTop="10dp"
+                android:layout_marginLeft="5dp"
                 android:textColor="@color/bff_gold_color"
                 android:textSize="@dimen/text_size_large"
                 android:layout_below="@+id/checkBoxBFF"
+                android:layout_toRightOf="@+id/editCell"
                 />
 
 
@@ -151,6 +166,8 @@
                 android:imeOptions="actionNext"
                 android:inputType="textCapWords"
                 android:textColor="@color/new_data_color"
+                android:layout_toLeftOf="@+id/imageContact"
+                android:layout_toStartOf="@+id/imageContact"
                 >
                 <requestFocus/>
             </EditText>

@@ -7,10 +7,16 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Point;
+import android.graphics.drawable.GradientDrawable;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.location.Address;
 import android.location.Geocoder;
 import android.location.Location;
@@ -20,6 +26,7 @@ import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ImageButton;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
@@ -51,6 +58,10 @@ GoogleApiClient.ConnectionCallbacks, com.google.android.gms.location.LocationLis
     ArrayList<Contact> contacts = new ArrayList<>();
     Contact currentContact = null;
 
+    SensorManager sensorManager; //Sensors and SensorManagers are instantiated as a system service by the operating system
+    Sensor accelerometer;       // by calling the getSystemService method within the app
+    Sensor magnetometer;
+    TextView textDirection;
 
 
     @Override
@@ -75,7 +86,7 @@ GoogleApiClient.ConnectionCallbacks, com.google.android.gms.location.LocationLis
 
 
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map); //used to make map compatible with earlier versions of the Android Operating System
-        mapFragment.getMapAsync(this); //map is retrieve asynchronously;  This class automatically initializes the maps system and the view.
+        mapFragment.getMapAsync(this); //map is retrieved asynchronously;  This class automatically initializes the maps system and the view.
         createLocationRequest(); //Calls the method that sets up the location listener
 
         if (mGoogleApiClient == null) { //API Client is created to establish a connection with API Services
@@ -85,6 +96,18 @@ GoogleApiClient.ConnectionCallbacks, com.google.android.gms.location.LocationLis
                     .addApi(LocationServices.API)
                     .build();
         }
+
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE); //get the reference from the OS for the system service
+        accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER); //uses sensorManager to grab the reference of the sensors
+        magnetometer = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+
+        if (accelerometer != null && magnetometer != null) { //tests whether the device has the sensors
+            sensorManager.registerListener(mySensorEventListener, accelerometer, SensorManager.SENSOR_DELAY_FASTEST);
+            sensorManager.registerListener(mySensorEventListener, magnetometer, SensorManager.SENSOR_DELAY_FASTEST);
+        } else {
+            Toast.makeText(this, "Sensors not found", Toast.LENGTH_LONG).show();
+        }
+        textDirection = (TextView) findViewById(R.id.textHeading);
 
         initMapTypeButton();
         initListButton();
@@ -335,5 +358,59 @@ GoogleApiClient.ConnectionCallbacks, com.google.android.gms.location.LocationLis
             }
         });
     }
+
+    private SensorEventListener mySensorEventListener = new SensorEventListener() {
+        //Sensor event listener requires the implementation of two Events, onAccuracyChanged & onSensorChanged
+        public void onAccuracyChanged(Sensor sensor, int accuracy) {
+            //to calculate a heading, accuracy is not need so the method is left blank
+        }
+
+        float[] accelerometerValues; //sensor readings are returned as a float array
+        float[] magneticValues;      //two variables are created to hold the response from each sensor declared
+
+        public void onSensorChanged(SensorEvent event) {  //determines which sensor triggered the event and then captures the values provided
+            if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {  //if Accelerometer triggered the event, its values are captured and assigned to the float array
+                accelerometerValues = event.values;
+            }
+            if(event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {//if magnetometer triggered the event, its values are captured and assigned to the float array
+                magneticValues = event.values;
+            }
+            if (accelerometerValues != null && magneticValues != null) { //checks to see if both sensors have values
+                float R[] = new float[9];   //creates two rational matrices used for orientation calculation
+                float I[] = new float[9];
+                boolean success = SensorManager.getRotationMatrix(R, I, accelerometerValues, magneticValues);
+                if (success) { //checks to see if the matrices were successfully calculated
+                    float orientation[] = new float[3]; //creates and institiates the orientation float array; orientation is measured in three dimensions
+                    SensorManager.getOrientation(R, orientation); //SensorManager calculates the orientation of the device
+
+                    float azimut = (float) Math.toDegrees(orientation[0]); //changes radians to degrees
+                    if (azimut < 0.0f) {
+                        azimut += 360.0f;
+                    }
+                    String direction;
+                    if (azimut >= 337.5f || azimut < 22.5f) { //given 45 degree increments for each direction
+                        direction = "N";
+                    }else if( azimut >= 292.5f && azimut < 337.5f) {
+                        direction = "NW";
+                    } else if (azimut >= 247.5f && azimut < 292.5f) {
+                        direction = "W";
+                    } else if (azimut >= 202.5f && azimut < 247.5f) {
+                        direction = "SW";
+                    }
+                    else if (azimut >= 157.5f && azimut < 202.5f) {
+                        direction = "S";
+                    } else if (azimut >= 112.5f && azimut < 157.5f) {
+                        direction = "SE";
+                    } else  if (azimut >= 67.5f && azimut < 112.5f ){
+                        direction = "E";
+                    } else {
+                        direction = "NE";
+                    }
+
+                    textDirection.setText(direction);
+                }
+            }
+        }
+    };
 
 }

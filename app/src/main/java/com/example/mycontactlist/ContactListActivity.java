@@ -2,9 +2,12 @@ package com.example.mycontactlist;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.os.BatteryManager;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
@@ -12,6 +15,7 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageButton;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -48,6 +52,20 @@ public class ContactListActivity extends AppCompatActivity {
         }catch (Exception e){
             Toast.makeText(this, "Error retrieving contacts", Toast.LENGTH_LONG).show();
         }
+
+        BroadcastReceiver batteryReceiver = new BroadcastReceiver() { //This object receives Intents and has the code used to respond to the Intent
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                double batteryLevel = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, 0); //gets the extra associated with the batterys current charge level form the OS
+                double levelScale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 0); //gets the extra asspcoated with the batterys scale used for measuring the charge level
+                int batteryPercent = (int) Math.floor(batteryLevel/levelScale * 100); //percentage level calculated
+                TextView textBatteryState = (TextView) findViewById(R.id.textBatteryLevel);
+                textBatteryState.setText(batteryPercent + "%"); //sets the percentage level on the TextView associated with the battery
+            }
+        };
+        IntentFilter filter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED); //listens for battery status changed intent broadcast by the system
+        registerReceiver(batteryReceiver, filter); //the app uses the broadcast receiver to listen and handle the battery status intents
+
     }
     @Override
     public void onResume() {

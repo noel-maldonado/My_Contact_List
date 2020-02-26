@@ -4,8 +4,12 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.view.ContextThemeWrapper;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -47,6 +51,13 @@ public class ContactDataSource {
             initialValues.put("bestFriendForever", c.getBestFriendForever());
             //test
 
+            if (c.getPicture() != null) {
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                c.getPicture().compress(Bitmap.CompressFormat.PNG, 100, baos);
+                byte[] photo = baos.toByteArray(); //to store a image in database it must be converted to a byteArray
+                initialValues.put("contactphoto", photo);
+            }
+
             didSucceed = database.insert("contact", null, initialValues) > 0; //insert method returns the number of records successfully inserted
 
         } catch (Exception e) {
@@ -72,6 +83,13 @@ public class ContactDataSource {
             updateValues.put("email", c.getEMail());
             updateValues.put("birthday", String.valueOf(c.getBirthday().getTimeInMillis()));
             updateValues.put("bestFriendForever", c.getBestFriendForever());
+
+            if (c.getPicture() != null) {
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                c.getPicture().compress(Bitmap.CompressFormat.PNG, 100, baos);
+                byte[] photo = baos.toByteArray(); //to store a image in database it must be converted to a byteArray
+                updateValues.put("contactphoto", photo);
+            }
 
             didSucceed = database.update("contact", updateValues, "_id=" + rowID, null) > 0; //update method returns the number of records successfully updated
 
@@ -165,6 +183,10 @@ public class ContactDataSource {
                 contacts.add(newContact); //newContact object reference is added to the contacts ArrayList<Contact>
                 cursor.moveToNext();  //moves to the next record held in the cursor
 
+                /*
+                this method does not need the picture becuase the picture is not used by any activity that uses the whole set of contacts
+                 */
+
             }
             cursor.close();
         }
@@ -194,6 +216,12 @@ public class ContactDataSource {
             calendar.setTimeInMillis(Long.valueOf(cursor.getString(9)));
             contact.setBirthday(calendar);
             contact.setBestFriendForever(cursor.getInt(10));
+            byte[] photo = cursor.getBlob(11);
+            if (photo != null) {
+                ByteArrayInputStream imageStream = new ByteArrayInputStream(photo);
+                Bitmap thePicture= BitmapFactory.decodeStream(imageStream); //converts blob to Bitmap
+                contact.setPicture(thePicture);
+            }
             cursor.close();
         }
         return contact;

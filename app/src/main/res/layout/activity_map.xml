@@ -68,6 +68,15 @@
             android:layout_marginLeft="20dp"
             android:layout_marginStart="20dp"
             android:text="Satellite View" />
+
+        <TextView
+            android:id="@+id/textHeading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerVertical="true"
+            android:layout_centerHorizontal="true"
+            android:text="WNW"/>
+
     </RelativeLayout>
 
     <fragment
