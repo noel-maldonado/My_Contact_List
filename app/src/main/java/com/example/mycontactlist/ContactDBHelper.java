@@ -9,7 +9,7 @@ import android.util.Log;
 public class ContactDBHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "mycontacts.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
 
     // Database creation sql statement
     private static final String CREATE_TABLE_CONTACT =
@@ -30,11 +30,11 @@ public class ContactDBHelper extends SQLiteOpenHelper {
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        Log.w(ContactDBHelper.class.getName(),
-                "Upgrading database from version " + oldVersion + " to "
-                        + newVersion + ", which will add a new column named best friend forever");
-        db.execSQL("ALTER TABLE contact ADD COLUMN bestFriendForever integer");
-        onCreate(db);
+       // Log.w(ContactDBHelper.class.getName(),
+       //         "Upgrading database from version " + oldVersion + " to "
+       //                 + newVersion + ", which will add a new column named best friend forever");
+       // db.execSQL("ALTER TABLE contact ADD COLUMN bestFriendForever integer");
+     //   onCreate(db);
         try {
             db.execSQL("ALTER TABLE contact ADD COLUMN contactphoto blob");
         } catch (Exception e) {
